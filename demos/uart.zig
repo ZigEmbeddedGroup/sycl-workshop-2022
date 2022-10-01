@@ -29,5 +29,7 @@ pub fn main() void {
     while (true) {
         std.log.info("hello world!", .{});
         time.sleepMs(1000);
+        if (uart.isReadable())
+            @panic("I'M NOT LISTENING TO YOUR DRIVEL");
     }
 }
