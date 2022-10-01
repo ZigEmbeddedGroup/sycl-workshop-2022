@@ -20,7 +20,6 @@ pub fn panic(
 const pot: adc.Input = .ain0;
 
 pub fn main() void {
-    adc.init();
     const uart = rp2040.uart.UART.init(0, .{
         .baud_rate = 115200,
         .tx_pin = 0,
@@ -30,7 +29,11 @@ pub fn main() void {
 
     rp2040.uart.initLogger(uart);
 
+    std.log.info("a", .{});
+    adc.init();
+    std.log.info("b", .{});
     pot.init();
+    std.log.info("d", .{});
 
     while (true) {
         std.log.info("{}", .{pot.read()});
