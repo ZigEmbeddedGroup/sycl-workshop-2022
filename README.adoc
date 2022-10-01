@@ -1,0 +1,17 @@
+= SYCL Embedded Workshop 2022
+
+Welcome! In here you will find all the materials you'll need for the day:
+
+* link:docs/rp2040.pdf[RP2040 reference manual]
+* link:docs/pinout.pdf[Raspberry Pi Pico Pinout Diagram]
+
+You can build all the demo programs with `zig build`. From there all you need
+to do is drag and drop one of the `<demo>.uf2` files into your mass storage
+device.
+
+The `build.zig` code is pretty short and hackable, have fun!
+
+== Prerequisites
+
+* we only use zig master in this house
+* if you want completions a la ZLS, then go update that to master as well
