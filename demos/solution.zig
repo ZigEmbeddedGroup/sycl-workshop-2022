@@ -95,6 +95,8 @@ fn mapToPwm(comptime T: type, value: T) u16 {
 pub fn main() !void {
     const pins = pin_config.apply();
 
+    rp2040.gpio.setFunction(21, .gpck);
+
     var button = makeButton(pins.rot_btn, 0, null);
     var quadrature_decoder = makeDecoder(pins.rot_a, pins.rot_b);
 
@@ -106,6 +108,22 @@ pub fn main() !void {
     });
 
     rp2040.uart.initLogger(uart);
+
+    microzig.chip.registers.RESETS.RESET.modify(.{
+        .adc = 1,
+    });
+
+    asm volatile ("nop");
+
+    microzig.chip.registers.RESETS.RESET.modify(.{
+        .adc = 0,
+    });
+
+    asm volatile ("nop");
+
+    std.log.info("power enabled:          {X:0>8}", .{microzig.chip.registers.PSM.DONE.raw});
+    std.log.info("peripherials reset:     {X:0>8}", .{microzig.chip.registers.RESETS.RESET.raw});
+    std.log.info("peripherials ready:     {X:0>8}", .{microzig.chip.registers.RESETS.RESET_DONE.raw});
 
     std.log.info("clocks enabled (wake):  {X:0>8}", .{microzig.chip.registers.CLOCKS.WAKE_EN0.raw});
     std.log.info("clocks enabled (sleep): {X:0>8}", .{microzig.chip.registers.CLOCKS.SLEEP_EN0.raw});
@@ -142,22 +160,18 @@ pub fn main() !void {
         rp2040.gpio.setFunction(10, .pwm);
     }
 
-    // std.log.info("initialize adc...", .{});
-    // {
-    //     microzig.chip.registers.CLOCKS.WAKE_EN0.modify(.{
-    //         .clk_sys_adc = 1,
-    //     });
-
-    //     rp2040.adc.init();
-    //     poti.init();
-    // }
+    std.log.info("initialize adc...", .{});
+    {
+        rp2040.adc.init();
+        poti.init();
+    }
 
     std.log.info("ready.", .{});
 
     var current_mode: ControlMode = .absolute;
     var current_position: u12 = 0; // using adc range here for position storage
-    var main_loop_timer = ConstantTimeLoop.init(10); // 10 us tick time
 
+    var main_loop_timer = ConstantTimeLoop.init(100);
     while (true) {
         defer main_loop_timer.waitCompleted(); // make sure we're always waiting for the timer to complete, even in case of continue or break.
 
@@ -177,19 +191,14 @@ pub fn main() !void {
         }
 
         // Position control:
-        const previous_position = current_position;
         current_position = switch (current_mode) {
-            .absolute => current_position +% 3, // poti.read(),
+            .absolute => poti.read(),
             .relative => switch (quadrature_decoder.tick()) {
                 .idle => current_position,
                 .increment => current_position +| 10,
                 .decrement => current_position -| 10,
             },
         };
-
-        if (previous_position != current_position) {
-            std.log.info("new position: {}", .{current_position});
-        }
 
         pwm.setLevel(mapToPwm(u12, current_position));
 

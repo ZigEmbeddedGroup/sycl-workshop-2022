@@ -3,13 +3,13 @@ const rp2040 = @import("deps/rp2040/build.zig");
 const uf2 = @import("deps/uf2/src/main.zig");
 
 const demos = .{
-    "blinky",
-    "uart",
-    "button",
-    "interrupt",
-    "pwm",
-    "adc",
-    "encoder",
+    // "blinky",
+    // "uart",
+    // "button",
+    // "interrupt",
+    // "pwm",
+    // "adc",
+    // "encoder",
     "solution",
 };
 
