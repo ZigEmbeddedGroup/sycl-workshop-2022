@@ -9,6 +9,7 @@ const demos = .{
     "interrupt",
     "pwm",
     "adc",
+    "encoder",
 };
 
 pub fn build(b: *std.build.Builder) void {
