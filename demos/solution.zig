@@ -3,66 +3,30 @@ const microzig = @import("microzig");
 const rp2040 = microzig.hal;
 const time = rp2040.time;
 
-const drivers = struct {
-    const quadrature = @import("microzig.quadrature");
-    const button = @import("microzig.button");
-};
-
 const uart_id = 0;
 const baud_rate = 115200;
-const uart_tx_pin = 0;
-const uart_rx_pin = 1;
 
 pub const log_level = .info;
 pub const log = rp2040.uart.log;
 
 const pin_config = rp2040.pins.GlobalConfiguration{
     // serial port
-    // .GPIO0 = .{
-    //     .name = "uart_tx",
-    //     .function = .UART0_TX,
-    // },
-    // .GPIO1 = .{
-    //     .name = "uart_rx",
-    //     .function = .UART0_RX,
-    // },
+    .GPIO0 = .{ .name = "uart_tx", .function = .UART0_TX },
+    .GPIO1 = .{ .name = "uart_rx", .function = .UART0_RX },
 
     // Digital outputs:
-    .GPIO25 = .{
-        .name = "led",
-        .direction = .out,
-    },
+    .GPIO25 = .{ .name = "led", .direction = .out },
 
     // PWM outputs:
-    .GPIO10 = .{
-        .name = "servo",
-        .direction = .out,
-        // .function = .PWM5_A,
-        .function = .SIO,
-    },
+    .GPIO10 = .{ .name = "servo", .function = .PWM5_A },
 
     // Analog inputs:
-    // .GPIO26 = .{
-    //     .name = "poti",
-    //     .function = .ADC0,
-    // },
+    .GPIO26 = .{ .name = "poti", .function = .ADC0 },
 
     // Digital inputs:
-    .GPIO12 = .{
-        .name = "rot_a",
-        .direction = .in,
-        .pull = .up,
-    },
-    .GPIO13 = .{
-        .name = "rot_b",
-        .direction = .in,
-        .pull = .up,
-    },
-    .GPIO18 = .{
-        .name = "rot_btn",
-        .direction = .in,
-        .pull = .up,
-    },
+    .GPIO12 = .{ .name = "rot_a", .direction = .in, .pull = .up },
+    .GPIO13 = .{ .name = "rot_b", .direction = .in, .pull = .up },
+    .GPIO18 = .{ .name = "rot_btn", .direction = .in, .pull = .up },
 };
 
 const ControlMode = enum {
@@ -70,111 +34,47 @@ const ControlMode = enum {
     relative, // using the rotary encoder
 };
 
-const poti: rp2040.adc.Input = .ain0;
-
-const pwm: rp2040.pwm.PWM(5, .a) = .{};
-
-const pwm_limit = 50_000;
-comptime {
-    _ = @as(u16, pwm_limit); // assert pwm_limit is in range for a u16, but keep it a comptime_int
-}
-
-fn mapToPwm(comptime T: type, value: T) u16 {
-    const low = @divExact(pwm_limit, 20); // 1ms
-    const high = 2 * low; // 2 ms
-
-    const delta = high - low;
-    if (delta == 0)
-        @compileError("Cannot map to a small range.");
-
-    const mapped_value = @as(u32, delta) * @as(u32, value) / @as(u32, std.math.maxInt(T));
-
-    return @truncate(u16, low + mapped_value);
-}
-
 pub fn main() !void {
     const pins = pin_config.apply();
-
-    rp2040.gpio.setFunction(21, .gpck);
 
     var button = makeButton(pins.rot_btn, 0, null);
     var quadrature_decoder = makeDecoder(pins.rot_a, pins.rot_b);
 
     const uart = rp2040.uart.UART.init(uart_id, .{
         .baud_rate = baud_rate,
-        .tx_pin = uart_tx_pin,
-        .rx_pin = uart_rx_pin,
         .clock_config = rp2040.clock_config,
     });
 
     rp2040.uart.initLogger(uart);
 
-    microzig.chip.registers.RESETS.RESET.modify(.{
-        .adc = 1,
-    });
-
-    asm volatile ("nop");
-
-    microzig.chip.registers.RESETS.RESET.modify(.{
-        .adc = 0,
-    });
-
-    asm volatile ("nop");
-
-    std.log.info("power enabled:          {X:0>8}", .{microzig.chip.registers.PSM.DONE.raw});
-    std.log.info("peripherials reset:     {X:0>8}", .{microzig.chip.registers.RESETS.RESET.raw});
-    std.log.info("peripherials ready:     {X:0>8}", .{microzig.chip.registers.RESETS.RESET_DONE.raw});
-
-    std.log.info("clocks enabled (wake):  {X:0>8}", .{microzig.chip.registers.CLOCKS.WAKE_EN0.raw});
-    std.log.info("clocks enabled (sleep): {X:0>8}", .{microzig.chip.registers.CLOCKS.SLEEP_EN0.raw});
-    std.log.info("clocks enabled (real):  {X:0>8}", .{microzig.chip.registers.CLOCKS.ENABLED0.raw});
-
     std.log.info("initialize pwm...", .{});
 
     {
-        pins.servo.put(1);
-        rp2040.resets.reset(&.{.pwm});
-
-        const slice = pwm.slice();
-
+        const slice = pins.servo.slice();
         const sys_freq = comptime rp2040.clock_config.pll_sys.?.frequency();
-
         const target_freq = 50; // Hz
-
         const increment_freq = pwm_limit * target_freq;
-
         const divider = @divExact(sys_freq, increment_freq); // compile error on imperfect scaling
-
-        // @compileLog(limit, sys_freq, target_freq, increment_freq, divider);
 
         slice.setClkDiv(divider, 0);
         slice.setWrap(pwm_limit);
         slice.setPhaseCorrect(false);
 
-        pwm.setLevel(5_000);
-
-        // rp2040.pwm.setChannelInversion(5, .a, true);
+        pins.servo.setLevel(5_000);
 
         slice.enable();
-
-        rp2040.gpio.setFunction(10, .pwm);
-    }
-
-    std.log.info("initialize adc...", .{});
-    {
-        rp2040.adc.init();
-        poti.init();
     }
 
     std.log.info("ready.", .{});
 
     var current_mode: ControlMode = .absolute;
-    var current_position: u12 = 0; // using adc range here for position storage
+    var current_position: u12 = 0; // using full adc range here for position storage
 
     var main_loop_timer = ConstantTimeLoop.init(100);
     while (true) {
         defer main_loop_timer.waitCompleted(); // make sure we're always waiting for the timer to complete, even in case of continue or break.
 
+        // Handle mode switch via button:
         switch (button.tick()) {
             .idle => {},
             .pressed => {
@@ -192,7 +92,7 @@ pub fn main() !void {
 
         // Position control:
         current_position = switch (current_mode) {
-            .absolute => poti.read(),
+            .absolute => pins.poti.read(),
             .relative => switch (quadrature_decoder.tick()) {
                 .idle => current_position,
                 .increment => current_position +| 10,
@@ -200,9 +100,8 @@ pub fn main() !void {
             },
         };
 
-        pwm.setLevel(mapToPwm(u12, current_position));
-
-        // // TODO: Set servo position
+        // Set servo position:
+        pins.servo.setLevel(mapToPwm(u12, current_position));
 
         // Set LED mode:
         switch (current_mode) {
@@ -213,6 +112,24 @@ pub fn main() !void {
             .relative => pins.led.put(@boolToInt(time.getTimeSinceBoot().us_since_boot % 500_000 >= 250_000)),
         }
     }
+}
+
+const pwm_limit = 50_000;
+comptime {
+    _ = @as(u16, pwm_limit); // assert pwm_limit is in range for a u16, but keep it a comptime_int
+}
+
+fn mapToPwm(comptime T: type, value: T) u16 {
+    const low = @divExact(pwm_limit, 20); // 1ms
+    const high = 2 * low; // 2 ms
+
+    const delta = high - low;
+    if (delta == 0)
+        @compileError("Cannot map to a small range.");
+
+    const mapped_value = @as(u32, delta) * @as(u32, value) / @as(u32, std.math.maxInt(T));
+
+    return @truncate(u16, low + mapped_value);
 }
 
 /// A timer construct that allows building loops that run
