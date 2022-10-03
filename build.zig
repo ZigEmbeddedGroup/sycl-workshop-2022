@@ -6,7 +6,7 @@ const demos = .{
     "blinky", // done
     "button", // done
     "button-debounced", // done
-    "uart",
+    "uart", // done
     "pwm", // done
     "adc", // done
     "encoder",
