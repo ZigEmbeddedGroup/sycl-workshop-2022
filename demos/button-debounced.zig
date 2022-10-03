@@ -33,6 +33,8 @@
 //!
 //! The functionality of this example is the same as in `button.zig`.
 //!
+//! Prerequisites: `button.zig`
+//!
 
 const std = @import("std");
 const microzig = @import("microzig");

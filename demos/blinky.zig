@@ -1,3 +1,9 @@
+//!
+//! This example blinks the LED on the RaspberryPi Pico.
+//!
+//! Prerequisites: none
+//!
+
 const std = @import("std");
 const microzig = @import("microzig");
 const rp2040 = microzig.hal;

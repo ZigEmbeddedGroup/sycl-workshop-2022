@@ -16,6 +16,8 @@
 //! duty cycle between 0% and 50% forth and back. This way, the LED will slowly blink
 //! in a smooth fashion.
 //!
+//! Prerequisites: `blinky.zig`
+//!
 
 const std = @import("std");
 const microzig = @import("microzig");

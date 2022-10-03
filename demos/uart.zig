@@ -17,6 +17,8 @@
 //! you type except for the ascii characters 'Z', 'I' and 'G'.
 //! Typing one of these letters will panic the code to showcase the microzig panic handler.
 //!
+//! Prerequisites: none
+//!
 
 const std = @import("std");
 const microzig = @import("microzig");

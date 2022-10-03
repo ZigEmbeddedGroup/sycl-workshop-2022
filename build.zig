@@ -9,27 +9,26 @@ const demos = .{
     "uart", // done
     "pwm", // done
     "adc", // done
-    "encoder",
+    "encoder", // done
     "interrupt",
-    "solution",
 };
 
 pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     inline for (demos) |demo| {
-        var exe = rp2040.addPiPicoExecutable(b, demo, "demos/" ++ demo ++ ".zig", .{});
-        exe.setBuildMode(mode);
-        exe.install();
+        var demo_exe = rp2040.addPiPicoExecutable(b, demo, "demos/" ++ demo ++ ".zig", .{});
+        demo_exe.setBuildMode(mode);
+        demo_exe.install();
 
-        const uf2_step = uf2.Uf2Step.create(exe.inner, .{
-            .family_id = .RP2040,
-        });
+        const uf2_step = uf2.Uf2Step.create(demo_exe.inner, .{ .family_id = .RP2040 });
         uf2_step.install();
-
-        const dump_step = b.addSystemCommand(&.{"./dump.sh"});
-        dump_step.addArg(b.getInstallPath(exe.inner.install_step.?.dest_dir, demo));
-        dump_step.step.dependOn(&exe.inner.install_step.?.step);
-        b.getInstallStep().dependOn(&dump_step.step);
     }
+
+    var solution_exe = rp2040.addPiPicoExecutable(b, "solution", "solution/solution.zig", .{});
+    solution_exe.setBuildMode(mode);
+    solution_exe.install();
+
+    const uf2_step = uf2.Uf2Step.create(solution_exe.inner, .{ .family_id = .RP2040 });
+    uf2_step.install();
 }

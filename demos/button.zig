@@ -1,8 +1,11 @@
+//!
 //! This example demonstrates how to read from a GPIO pin.
 //!
 //! The functionality that is implemented:
 //! A button is connected between GND and GP9. Every time the button
 //! is pressed down, the LED of the pico should toggle.
+//!
+//! Prerequisites: `blinky.zig`
 //!
 
 const std = @import("std");

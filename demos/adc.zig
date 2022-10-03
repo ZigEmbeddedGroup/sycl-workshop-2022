@@ -9,6 +9,8 @@
 //! In this example, we're sampling the data on pin ADC0 and sending
 //! the raw data via uart to a host pc.
 //!
+//! Prerequisites: `uart.zig`
+//!
 
 const std = @import("std");
 const microzig = @import("microzig");
