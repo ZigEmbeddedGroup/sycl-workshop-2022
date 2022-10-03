@@ -26,7 +26,7 @@ const pin_config = rp2040.pins.GlobalConfiguration{
     // Digital inputs:
     .GPIO12 = .{ .name = "rot_a", .direction = .in, .pull = .up },
     .GPIO13 = .{ .name = "rot_b", .direction = .in, .pull = .up },
-    .GPIO18 = .{ .name = "rot_btn", .direction = .in, .pull = .up },
+    .GPIO9 = .{ .name = "rot_btn", .direction = .in, .pull = .up },
 };
 
 const ControlMode = enum {

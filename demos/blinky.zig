@@ -1,6 +1,5 @@
 const std = @import("std");
 const microzig = @import("microzig");
-const regs = microzig.chip.registers;
 const rp2040 = microzig.hal;
 const gpio = rp2040.gpio;
 const time = rp2040.time;
