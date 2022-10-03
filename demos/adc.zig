@@ -29,11 +29,8 @@ pub fn main() void {
 
     rp2040.uart.initLogger(uart);
 
-    std.log.info("a", .{});
     adc.init();
-    std.log.info("b", .{});
     pot.init();
-    std.log.info("d", .{});
 
     while (true) {
         std.log.info("{}", .{pot.read()});
