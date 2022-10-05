@@ -39,10 +39,10 @@ const led = 25;
 const button = 9;
 
 // stop when we've gotten to 30Hz
-const threshold_ms = (30 / 2) * std.time.ms_per_s;
-const init_period_ms = 1000;
+const threshold_ms: u32 = (30 / 2) * std.time.ms_per_s;
+const init_period_ms: u32 = 1000;
 
-var delay_period_ms = init_period_ms;
+var delay_period_ms: u32 = init_period_ms;
 
 pub const interrupts = struct {
     pub fn IO_IRQ_BANK0() void {
@@ -73,7 +73,7 @@ pub fn main() void {
 
     // here's an example of writing directly to a register
     regs.IO_BANK0.INTR1.modify(.{
-        .GPIO_EDGE_HIGH = 1,
+        .GPIO9_EDGE_HIGH = 1,
     });
 
     // initialize nvic
