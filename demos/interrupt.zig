@@ -79,8 +79,6 @@ pub fn main() void {
     gpio.setDir(button, .in);
     gpio.setPullUpDown(button, .up);
 
-    // microzig.chip.registers.IO_BANK0.GPIO9_CTRL.raw
-
     // here's an example of writing directly to a register
     regs.IO_BANK0.PROC0_INTE1.modify(.{ .GPIO9_EDGE_LOW = 1 });
 
