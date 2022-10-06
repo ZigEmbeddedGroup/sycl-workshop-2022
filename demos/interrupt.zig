@@ -22,9 +22,9 @@
 //! the rate of blinking will reset.
 //!
 //! Prerequisites:
-//! * encoder
-//! * pwm
-//! * uart
+//! * blinky
+//! * button
+//!
 
 const std = @import("std");
 const microzig = @import("microzig");
@@ -39,9 +39,10 @@ const led = 25;
 const button = 9;
 
 // stop when we've gotten to 30Hz
-const threshold_ms: u32 = (30 / 2) * std.time.ms_per_s;
+const threshold_ms: u32 = std.time.ms_per_s / 30;
 const init_period_ms: u32 = 1000;
 
+var interrupt_happened: u32 = 0;
 var delay_period_ms: u32 = init_period_ms;
 
 pub const interrupts = struct {
@@ -52,11 +53,19 @@ pub const interrupts = struct {
         cpu.cli();
         defer cpu.sei();
 
-        const new_period = delay_period_ms / 2;
-        delay_period_ms = if (new_period < threshold_ms)
+        // decrement the blinking period a bit
+        const new_period = volatileRead(&delay_period_ms) - 200;
+        volatileWrite(&delay_period_ms, if (new_period < threshold_ms)
             init_period_ms
         else
-            new_period;
+            new_period);
+
+        volatileWrite(&interrupt_happened, 1);
+
+        // Acknowledge the interrupt to the CPU, and tell it
+        // we handled it. If we don't do that, the interrupt is immediatly
+        // invoked again after the return.
+        regs.IO_BANK0.INTR1.modify(.{ .GPIO9_EDGE_LOW = 1 });
     }
 };
 
@@ -64,19 +73,19 @@ pub fn main() void {
     gpio.reset();
 
     // see blinky.zig for an explanation here:
-    gpio.reset();
     gpio.setFunction(led, .sio);
     gpio.setFunction(button, .sio);
     gpio.setDir(led, .out);
     gpio.setDir(button, .in);
     gpio.setPullUpDown(button, .up);
 
-    // here's an example of writing directly to a register
-    regs.IO_BANK0.INTR1.modify(.{
-        .GPIO9_EDGE_HIGH = 1,
-    });
+    // microzig.chip.registers.IO_BANK0.GPIO9_CTRL.raw
 
-    // initialize nvic
+    // here's an example of writing directly to a register
+    regs.IO_BANK0.PROC0_INTE1.modify(.{ .GPIO9_EDGE_LOW = 1 });
+
+    // initialize nvic and tell it to route the
+    // IO_IRQ_BANK0 into our code
     irq.enable("IO_IRQ_BANK0");
 
     // lfg
@@ -88,10 +97,37 @@ pub fn main() void {
             cpu.cli();
             defer cpu.sei();
 
-            break :blk delay_period_ms;
+            break :blk volatileRead(&delay_period_ms);
         };
 
         gpio.toggle(led);
-        time.sleepMs(delay_ms);
+        sleepMsInterruptible(delay_ms);
     }
+}
+
+// Use a variant of the sleep routine here that can be interrupted
+// by our ... interrupt.
+// This gives us immediate feedback on when the user clicks the button
+// and not like 990ms later, the LED will start blinking twice as fast.
+fn sleepMsInterruptible(delay_ms: u32) void {
+    const end_time = time.Absolute{
+        .us_since_boot = time.getTimeSinceBoot().us_since_boot + 1000 * @as(u64, delay_ms),
+    };
+
+    volatileWrite(&interrupt_happened, 0);
+    while (!time.reached(end_time)) {
+        if (volatileRead(&interrupt_happened) != 0)
+            return;
+    }
+}
+
+// Aux function to do a guaranteed read from a variable
+// that won't be optimized away.
+fn volatileRead(ptr: *volatile u32) u32 {
+    return ptr.*;
+}
+
+// Aux function to do a guaranteed write to a variable.
+fn volatileWrite(ptr: *volatile u32, value: u32) void {
+    ptr.* = value;
 }
